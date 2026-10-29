@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pokémon Survivors - Charizard Edition</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@400;600;800&display=swap');
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            overflow: hidden;
+            background-color: #121826;
+        }
+
+        .font-pixel {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        /* Glassmorphism overlays */
+        .glass-panel {
+            background: rgba(18, 24, 38, 0.85);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-hover {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card-hover:hover {
+            transform: translateY(-4px) scale(1.02);
+            border-color: #f97316;
+            box-shadow: 0 10px 25px -5px rgba(249, 115, 22, 0.4);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(249, 115, 22, 0.5);
+            border-radius: 3px;
+        }
+
+        /* Scanline retro effect */
+        .scanlines {
+            position: relative;
+            overflow: hidden;
+        }
+        .scanlines::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 10;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center bg-gray-950 text-white font-sans overflow-hidden select-none">
+
+    <!-- GAME CONTAINER -->
+    <div id="game-container" class="relative w-full h-full scanlines flex items-center justify-center">
+        <!-- CANVAS -->
+        <canvas id="gameCanvas" class="block w-full h-full bg-emerald-900 cursor-crosshair"></canvas>
+
+        <!-- HUD UI OVERLAY -->
+        <div id="hud" class="absolute top-0 left-0 w-full p-4 pointer-events-none flex flex-col justify-between h-full z-20">
+            <!-- TOP BAR -->
+            <div class="flex flex-col gap-2 max-w-4xl mx-auto w-full">
+                <!-- EXP BAR CONTAINER -->
+                <div class="relative w-full h-6 bg-gray-900/80 rounded-full border border-gray-700/80 overflow-hidden shadow-lg p-1 backdrop-blur-sm">
+                    <div id="exp-bar" class="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 rounded-full transition-all duration-200 w-0 shadow-[0_0_12px_rgba(251,191,36,0.6)]"></div>
+                    <span id="level-text" class="absolute inset-0 flex items-center justify-center text-xs font-bold font-pixel text-yellow-100 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">NIVEL 1</span>
+                </div>
+
+                <!-- STATS & TIMERS BAR -->
+                <div class="flex justify-between items-center px-2">
+                    <!-- HP BAR & LIFE -->
+                    <div class="flex items-center gap-3 bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 backdrop-blur-sm">
+                        <i class="fa-solid fa-heart text-red-500 text-lg animate-pulse"></i>
+                        <div class="w-32 md:w-48 h-4 bg-gray-950 rounded-full overflow-hidden border border-gray-800 p-0.5">
+                            <div id="hp-bar" class="h-full bg-gradient-to-r from-red-600 to-emerald-500 rounded-full transition-all duration-150 w-full"></div>
+                        </div>
+                        <span id="hp-text" class="text-xs font-pixel text-gray-200">100/100</span>
+                    </div>
+
+                    <!-- TIME & KILLS -->
+                    <div class="flex gap-4">
+                        <div class="flex items-center gap-2 bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 backdrop-blur-sm">
+                            <i class="fa-solid fa-stopwatch text-amber-400"></i>
+                            <span id="time-text" class="font-pixel text-sm text-yellow-300">00:00</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-gray-900/80 px-4 py-2 rounded-xl border border-gray-800 backdrop-blur-sm">
+                            <i class="fa-solid fa-skull text-purple-400"></i>
+                            <span id="kills-text" class="font-pixel text-sm text-purple-300">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTIVE SKILLS HUD (BOTTOM LEFT) -->
+            <div class="flex justify-between items-end w-full">
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs font-pixel text-gray-400 uppercase tracking-widest pl-1">Ataques Activos</span>
+                    <div id="active-skills-list" class="flex gap-2 bg-gray-900/80 p-2 rounded-2xl border border-gray-800 backdrop-blur-sm pointer-events-auto">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- CONTROLS INFO / AUDIO TOGGLE -->
+                <div class="flex items-center gap-2 pointer-events-auto">
+                    <button id="sound-btn" class="bg-gray-900/90 hover:bg-gray-800 border border-gray-700 p-3 rounded-2xl text-yellow-400 transition-all shadow-lg">
+                        <i class="fa-solid fa-volume-high text-lg"></i>
+                    </button>
+                    <div class="hidden md:flex bg-gray-900/80 px-3 py-2 rounded-xl border border-gray-800 text-xs text-gray-400 gap-2 items-center">
+                        <span class="bg-gray-800 px-2 py-1 rounded text-white font-mono">WASD</span> / <span class="bg-gray-800 px-2 py-1 rounded text-white font-mono">Flechas</span> Mover
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- START SCREEN MODAL -->
+        <div id="start-screen" class="absolute inset-0 z-40 flex items-center justify-center bg-gray-950/90 backdrop-blur-md">
+            <div class="max-w-lg w-full p-8 rounded-3xl glass-panel text-center flex flex-col items-center border border-orange-500/30 shadow-[0_0_50px_rgba(249,115,22,0.2)]">
+                <div class="w-24 h-24 mb-4 relative flex items-center justify-center">
+                    <div class="absolute inset-0 bg-orange-500/20 rounded-full blur-xl animate-pulse"></div>
+                    <i class="fa-solid fa-fire-flame-curved text-6xl text-orange-500 relative z-10"></i>
+                </div>
+                <h1 class="text-3xl font-pixel text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-500 mb-2">POKÉMON SURVIVORS</h1>
+                <p class="text-gray-400 text-sm mb-6 font-medium">Controla a <span class="text-orange-400 font-semibold">Charizard</span>, evoluciona sus ataques de fuego y sobrevive a las hordas enemigas en aumento constante.</p>
+                
+                <div class="grid grid-cols-2 gap-3 w-full mb-6 text-left text-xs text-gray-300">
+                    <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-gamepad text-orange-400 text-base"></i>
+                        <span>Teclas WASD o Flechas</span>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-gem text-amber-400 text-base"></i>
+                        <span>Recoge Gemas EXP</span>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-yellow-400 text-base"></i>
+                        <span>Ataques Automáticos</span>
+                    </div>
+                    <div class="bg-gray-900/60 p-3 rounded-xl border border-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-blue-400 text-base"></i>
+                        <span>Mejora Stats al subir nivel</span>
+                    </div>
+                </div>
+
+                <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-gray-950 font-pixel font-bold rounded-2xl shadow-lg shadow-orange-500/30 transform active:scale-95 transition-all text-sm tracking-wider">
+                    ¡COMENZAR AVENTURA!
+                </button>
+            </div>
+        </div>
+
+        <!-- LEVEL UP UPGRADE MODAL -->
+        <div id="upgrade-modal" class="hidden absolute inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <div class="max-w-2xl w-full flex flex-col items-center">
+                <div class="text-center mb-6">
+                    <span class="text-yellow-400 font-pixel text-xs tracking-widest uppercase mb-1 block animate-bounce">¡SUBIDA DE NIVEL!</span>
+                    <h2 class="text-2xl font-pixel text-white">ELIGE UNA MEJORA</h2>
+                </div>
+                
+                <div id="upgrade-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                    <!-- Cards will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME OVER MODAL -->
+        <div id="game-over-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-gray-950/90 backdrop-blur-lg p-4">
+            <div class="max-w-md w-full glass-panel p-8 rounded-3xl text-center border border-red-500/30 flex flex-col items-center">
+                <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
+                    <i class="fa-solid fa-skull text-4xl text-red-500"></i>
+                </div>
+                <h2 class="text-2xl font-pixel text-red-500 mb-1">¡HAS SIDO DERROTADO!</h2>
+                <p class="text-gray-400 text-xs mb-6">Charizard ha caído en combate</p>
+
+                <div class="w-full bg-gray-900/80 rounded-2xl p-4 border border-gray-800 flex flex-col gap-3 mb-6 font-mono text-sm">
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="text-gray-400">Tiempo Sobrevivido:</span>
+                        <span id="final-time" class="text-yellow-400 font-bold">00:00</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="text-gray-400">Enemigos Derrotados:</span>
+                        <span id="final-kills" class="text-purple-400 font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Nivel Alcanzado:</span>
+                        <span id="final-level" class="text-amber-400 font-bold">Nivel 1</span>
+                    </div>
+                </div>
+
+                <button id="restart-btn" class="w-full py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-pixel text-xs font-bold rounded-2xl shadow-lg shadow-red-500/30 transform active:scale-95 transition-all">
+                    REINTENTAR
+                </button>
+            </div>
+        </div>
+
+        <!-- TOUCH JOYSTICK FOR MOBILE -->
+        <div id="joystick-zone" class="absolute bottom-6 left-6 w-32 h-32 rounded-full border-2 border-white/20 bg-black/20 backdrop-blur-sm pointer-events-auto md:hidden hidden touch-none z-30">
+            <div id="joystick-knob" class="absolute top-1/2 left-1/2 w-12 h-12 -mt-6 -ml-6 rounded-full bg-orange-500/60 border border-orange-300 pointer-events-none transition-transform duration-75"></div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT GAME ENGINE -->
+    <script>
+        // ==========================================
+        // AUDIO SYNTHESIZER (Web Audio API)
+        // ==========================================
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playHit() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playShoot() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playExp() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playLevelUp() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [400, 520, 660, 880];
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                    gain.gain.setValueAtTime(0.2, now + i * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 0.2);
+                });
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        // ==========================================
+        // GAME CONFIG & DATA DEFINITIONS
+        // ==========================================
+        const MOVES = {
+            flamethrower: {
+                id: 'flamethrower',
+                name: 'Lanzallamas',
+                icon: 'fa-fire',
+                color: '#f97316',
+                level: 1,
+                maxLevel: 5,
+                cooldown: 0.8, // seconds
+                timer: 0,
+                damage: 25,
+                speed: 380,
+                range: 350,
+                desc: 'Lanza ráfagas continuas de fuego hacia el enemigo más cercano.'
+            },
+            fireBlast: {
+                id: 'fireBlast',
+                name: 'Llamarada',
+                icon: 'fa-burst',
+                color: '#ef4444',
+                level: 0,
+                maxLevel: 5,
+                cooldown: 2.5,
+                timer: 0,
+                damage: 65,
+                speed: 250,
+                area: 90,
+                desc: 'Dispara una gran masa de fuego estelar que explota al impacto.'
+            },
+            airSlash: {
+                id: 'airSlash',
+                name: 'Tajo Aéreo',
+                icon: 'fa-wind',
+                color: '#38bdf8',
+                level: 0,
+                maxLevel: 5,
+                cooldown: 1.5,
+                timer: 0,
+                damage: 35,
+                speed: 450,
+                count: 3,
+                desc: 'Lanza cuchillas de viento cortantes que atraviesan enemigos.'
+            },
+            dragonPulse: {
+                id: 'dragonPulse',
+                name: 'Pulso Dragón',
+                icon: 'fa-dragon',
+                color: '#a855f7',
+                level: 0,
+                maxLevel: 5,
+                cooldown: 3.0,
+                timer: 0,
+                damage: 50,
+                speed: 300,
+                desc: 'Onda expansiva dracónica de 360 grados que repele enemigos.'
+            },
+            fireSpin: {
+                id: 'fireSpin',
+                name: 'Giro Fuego',
+                icon: 'fa-dharmachakra',
+                color: '#eab308',
+                level: 0,
+                maxLevel: 5,
+                cooldown: 0.1,
+                timer: 0,
+                damage: 15,
+                radius: 110,
+                desc: 'Un anillo abrasador que gira constantemente alrededor de Charizard.'
+            }
+        };
+
+        const STAT_UPGRADES = [
+            { id: 'fuerza', name: 'Fuerza +20%', icon: 'fa-hand-fist', color: 'text-red-400', desc: 'Aumenta el daño de todos los ataques.' },
+            { id: 'armadura', name: 'Armadura +15%', icon: 'fa-shield-halved', color: 'text-blue-400', desc: 'Reduce el daño recibido por enemigos.' },
+            { id: 'velocidad', name: 'Velocidad +15%', icon: 'fa-shoe-prints', color: 'text-emerald-400', desc: 'Aumenta la velocidad de movimiento.' },
+            { id: 'cadencia', name: 'Cadencia +15%', icon: 'fa-bolt', color: 'text-yellow-400', desc: 'Reduce el tiempo de recarga de ataques.' },
+            { id: 'salud', name: 'Salud Máx +25', icon: 'fa-heart', color: 'text-rose-400', desc: 'Aumenta la salud máxima y cura 25 HP.' },
+            { id: 'iman', name: 'Imán EXP +30%', icon: 'fa-magnet', color: 'text-purple-400', desc: 'Aumenta el rango de recolección de gemas.' }
+        ];
+
+        const ENEMY_TYPES = {
+            rattata: {
+                name: 'Rattata',
+                color: '#a855f7',
+                radius: 14,
+                speed: 120,
+                hp: 30,
+                damage: 8,
+                exp: 10
+            },
+            zubat: {
+                name: 'Zubat',
+                color: '#3b82f6',
+                radius: 12,
+                speed: 160,
+                hp: 20,
+                damage: 5,
+                exp: 8
+            },
+            geodude: {
+                name: 'Geodude',
+                color: '#78350f',
+                radius: 20,
+                speed: 65,
+                hp: 110,
+                damage: 18,
+                exp: 25
+            },
+            gengar: {
+                name: 'Gengar',
+                color: '#6b21a8',
+                radius: 26,
+                speed: 110,
+                hp: 300,
+                damage: 25,
+                exp: 80
+            }
+        };
+
+        // ==========================================
+        // GAME STATE ENGINE
+        // ==========================================
+        class Game {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                
+                this.isRunning = false;
+                this.isPaused = false;
+                
+                this.lastTime = 0;
+                this.survivalTime = 0;
+                this.kills = 0;
+                
+                // Camera offset
+                this.camera = { x: 0, y: 0 };
+                
+                // Inputs
+                this.keys = {};
+                this.joystickVector = { x: 0, y: 0 };
+
+                // Player Stats
+                this.player = {
+                    x: 0,
+                    y: 0,
+                    radius: 22,
+                    speed: 210,
+                    hp: 100,
+                    maxHp: 100,
+                    level: 1,
+                    exp: 0,
+                    nextLevelExp: 30,
+                    damageMult: 1.0,
+                    armor: 0, // reduction percentage
+                    cooldownMult: 1.0,
+                    magnetRange: 120,
+                    facingLeft: false,
+                    wingAngle: 0
+                };
+
+                // Entities
+                this.enemies = [];
+                this.projectiles = [];
+                this.gems = [];
+                this.particles = [];
+                this.damageNumbers = [];
+
+                // Spawning timers
+                this.spawnTimer = 0;
+                this.spawnInterval = 1.2; // decreases over time
+
+                this.moves = JSON.parse(JSON.stringify(MOVES));
+
+                this.initEvents();
+                this.resize();
+            }
+
+            resize() {
+                this.width = window.innerWidth;
+                this.height = window.innerHeight;
+                this.canvas.width = this.width;
+                this.canvas.height = this.height;
+            }
+
+            initEvents() {
+                window.addEventListener('resize', () => this.resize());
+
+                // Keyboard events
+                window.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                });
+                window.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+
+                // Sound Toggle
+                document.getElementById('sound-btn').addEventListener('click', () => {
+                    sound.enabled = !sound.enabled;
+                    document.getElementById('sound-btn').classList.toggle('text-yellow-400', sound.enabled);
+                    document.getElementById('sound-btn').classList.toggle('text-gray-500', !sound.enabled);
+                });
+
+                // Start / Restart Buttons
+                document.getElementById('start-btn').addEventListener('click', () => {
+                    sound.init();
+                    document.getElementById('start-screen').classList.add('hidden');
+                    this.start();
+                });
+
+                document.getElementById('restart-btn').addEventListener('click', () => {
+                    document.getElementById('game-over-modal').classList.add('hidden');
+                    this.start();
+                });
+
+                this.initTouchControls();
+            }
+
+            initTouchControls() {
+                const zone = document.getElementById('joystick-zone');
+                const knob = document.getElementById('joystick-knob');
+                let activeTouchId = null;
+                let startX = 0, startY = 0;
+
+                if ('ontouchstart' in window) {
+                    zone.classList.remove('hidden');
+                }
+
+                zone.addEventListener('touchstart', (e) => {
+                    if (activeTouchId !== null) return;
+                    const touch = e.changedTouches[0];
+                    activeTouchId = touch.identifier;
+                    const rect = zone.getBoundingClientRect();
+                    startX = rect.left + rect.width / 2;
+                    startY = rect.top + rect.height / 2;
+                });
+
+                window.addEventListener('touchmove', (e) => {
+                    if (activeTouchId === null) return;
+                    for (let touch of e.changedTouches) {
+                        if (touch.identifier === activeTouchId) {
+                            const dx = touch.clientX - startX;
+                            const dy = touch.clientY - startY;
+                            const dist = Math.hypot(dx, dy);
+                            const maxDist = 45;
+
+                            const angle = Math.atan2(dy, dx);
+                            const clampedDist = Math.min(dist, maxDist);
+
+                            const knobX = Math.cos(angle) * clampedDist;
+                            const knobY = Math.sin(angle) * clampedDist;
+
+                            knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+
+                            this.joystickVector.x = (knobX / maxDist);
+                            this.joystickVector.y = (knobY / maxDist);
+                        }
+                    }
+                });
+
+                const endTouch = (e) => {
+                    if (activeTouchId === null) return;
+                    for (let touch of e.changedTouches) {
+                        if (touch.identifier === activeTouchId) {
+                            activeTouchId = null;
+                            knob.style.transform = `translate(0px, 0px)`;
+                            this.joystickVector.x = 0;
+                            this.joystickVector.y = 0;
+                        }
+                    }
+                };
+
+                window.addEventListener('touchend', endTouch);
+                window.addEventListener('touchcancel', endTouch);
+            }
+
+            start() {
+                this.player.x = 0;
+                this.player.y = 0;
+                this.player.hp = 100;
+                this.player.maxHp = 100;
+                this.player.level = 1;
+                this.player.exp = 0;
+                this.player.nextLevelExp = 30;
+                this.player.speed = 210;
+                this.player.damageMult = 1.0;
+                this.player.armor = 0;
+                this.player.cooldownMult = 1.0;
+                this.player.magnetRange = 120;
+
+                this.survivalTime = 0;
+                this.kills = 0;
+                this.spawnInterval = 1.2;
+
+                this.enemies = [];
+                this.projectiles = [];
+                this.gems = [];
+                this.particles = [];
+                this.damageNumbers = [];
+
+                this.moves = JSON.parse(JSON.stringify(MOVES));
+                
+                this.isRunning = true;
+                this.isPaused = false;
+                this.lastTime = performance.now();
+
+                this.updateHud();
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            // ==========================================
+            // MAIN LOOP
+            // ==========================================
+            loop(timestamp) {
+                if (!this.isRunning) return;
+
+                const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+                this.lastTime = timestamp;
+
+                if (!this.isPaused) {
+                    this.update(dt);
+                    this.render();
+                }
+
+                requestAnimationFrame((t) => this.loop(t));
+            }
+
+            // ==========================================
+            // UPDATE LOGIC
+            // ==========================================
+            update(dt) {
+                this.survivalTime += dt;
+                this.updatePlayerMovement(dt);
+                this.updateCamera();
+                this.updateAttacks(dt);
+                this.updateEnemies(dt);
+                this.updateProjectiles(dt);
+                this.updateGems(dt);
+                this.updateParticles(dt);
+                this.spawnManager(dt);
+                this.updateHud();
+            }
+
+            updatePlayerMovement(dt) {
+                let dx = 0;
+                let dy = 0;
+
+                if (this.keys['KeyW'] || this.keys['ArrowUp']) dy -= 1;
+                if (this.keys['KeyS'] || this.keys['ArrowDown']) dy += 1;
+                if (this.keys['KeyA'] || this.keys['ArrowLeft']) dx -= 1;
+                if (this.keys['KeyD'] || this.keys['ArrowRight']) dx += 1;
+
+                if (dx === 0 && dy === 0) {
+                    dx = this.joystickVector.x;
+                    dy = this.joystickVector.y;
+                }
+
+                const length = Math.hypot(dx, dy);
+                if (length > 0.1) {
+                    const normX = dx / (length > 1 ? length : 1);
+                    const normY = dy / (length > 1 ? length : 1);
+
+                    this.player.x += normX * this.player.speed * dt;
+                    this.player.y += normY * this.player.speed * dt;
+
+                    if (dx !== 0) {
+                        this.player.facingLeft = dx < 0;
+                    }
+                }
+
+                // Animate Charizard Wings
+                this.player.wingAngle += dt * 8;
+            }
+
+            updateCamera() {
+                this.camera.x = this.player.x - this.width / 2;
+                this.camera.y = this.player.y - this.height / 2;
+            }
+
+            // ==========================================
+            // ATTACK SYSTEM
+            // ==========================================
+            updateAttacks(dt) {
+                for (let key in this.moves) {
+                    const move = this.moves[key];
+                    if (move.level <= 0) continue;
+
+                    // Continuous Attacks like Fire Spin
+                    if (move.id === 'fireSpin') {
+                        this.handleFireSpin(move, dt);
+                        continue;
+                    }
+
+                    move.timer += dt;
+                    const effectiveCooldown = move.cooldown * this.player.cooldownMult;
+
+                    if (move.timer >= effectiveCooldown) {
+                        move.timer = 0;
+                        this.executeMove(move);
+                    }
+                }
+            }
+
+            executeMove(move) {
+                const target = this.getClosestEnemy();
+
+                if (move.id === 'flamethrower') {
+                    const angle = target ? Math.atan2(target.y - this.player.y, target.x - this.player.x) : (this.player.facingLeft ? Math.PI : 0);
+                    sound.playShoot();
+                    this.projectiles.push({
+                        type: 'flamethrower',
+                        x: this.player.x,
+                        y: this.player.y,
+                        vx: Math.cos(angle) * move.speed,
+                        vy: Math.sin(angle) * move.speed,
+                        damage: move.damage * this.player.damageMult,
+                        radius: 12,
+                        range: move.range,
+                        traveled: 0
+                    });
+                } else if (move.id === 'fireBlast') {
+                    const angle = target ? Math.atan2(target.y - this.player.y, target.x - this.player.x) : Math.random() * Math.PI * 2;
+                    sound.playShoot();
+                    this.projectiles.push({
+                        type: 'fireBlast',
+                        x: this.player.x,
+                        y: this.player.y,
+                        vx: Math.cos(angle) * move.speed,
+                        vy: Math.sin(angle) * move.speed,
+                        damage: move.damage * this.player.damageMult,
+                        radius: 18,
+                        area: move.area,
+                        life: 1.5
+                    });
+                } else if (move.id === 'airSlash') {
+                    sound.playShoot();
+                    for (let i = 0; i < move.count; i++) {
+                        const baseAngle = target ? Math.atan2(target.y - this.player.y, target.x - this.player.x) : 0;
+                        const spreadAngle = baseAngle + (i - (move.count - 1) / 2) * 0.25;
+                        this.projectiles.push({
+                            type: 'airSlash',
+                            x: this.player.x,
+                            y: this.player.y,
+                            vx: Math.cos(spreadAngle) * move.speed,
+                            vy: Math.sin(spreadAngle) * move.speed,
+                            damage: move.damage * this.player.damageMult,
+                            radius: 14,
+                            pierce: 3,
+                            life: 1.2
+                        });
+                    }
+                } else if (move.id === 'dragonPulse') {
+                    sound.playShoot();
+                    this.projectiles.push({
+                        type: 'dragonPulse',
+                        x: this.player.x,
+                        y: this.player.y,
+                        radius: 20,
+                        maxRadius: 220,
+                        growthRate: 380,
+                        damage: move.damage * this.player.damageMult,
+                        hitEnemies: new Set()
+                    });
+                }
+            }
+
+            handleFireSpin(move, dt) {
+                // Fire spin deals damage over time in proximity
+                const damageThisFrame = (move.damage * this.player.damageMult) * dt * 4;
+                const radius = move.radius;
+
+                for (let enemy of this.enemies) {
+                    const dist = Math.hypot(enemy.x - this.player.x, enemy.y - this.player.y);
+                    if (dist < radius + enemy.radius) {
+                        this.damageEnemy(enemy, damageThisFrame, false);
+                    }
+                }
+            }
+
+            getClosestEnemy() {
+                let closest = null;
+                let minDist = Infinity;
+                for (let enemy of this.enemies) {
+                    const dist = Math.hypot(enemy.x - this.player.x, enemy.y - this.player.y);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closest = enemy;
+                    }
+                }
+                return closest;
+            }
+
+            // ==========================================
+            // PROJECTILE & PARTICLES UPDATES
+            // ==========================================
+            updateProjectiles(dt) {
+                for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                    const p = this.projectiles[i];
+
+                    if (p.type === 'dragonPulse') {
+                        p.radius += p.growthRate * dt;
+                        p.x = this.player.x;
+                        p.y = this.player.y;
+
+                        for (let enemy of this.enemies) {
+                            if (!p.hitEnemies.has(enemy.id)) {
+                                const dist = Math.hypot(enemy.x - p.x, enemy.y - p.y);
+                                if (Math.abs(dist - p.radius) < 25) {
+                                    this.damageEnemy(enemy, p.damage, true);
+                                    p.hitEnemies.add(enemy.id);
+                                    // Knockback
+                                    const angle = Math.atan2(enemy.y - p.y, enemy.x - p.x);
+                                    enemy.x += Math.cos(angle) * 35;
+                                    enemy.y += Math.sin(angle) * 35;
+                                }
+                            }
+                        }
+
+                        if (p.radius >= p.maxRadius) {
+                            this.projectiles.splice(i, 1);
+                        }
+                        continue;
+                    }
+
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+
+                    if (p.type === 'flamethrower') {
+                        p.traveled += p.speed * dt;
+                        // Particle trail
+                        if (Math.random() < 0.4) {
+                            this.addParticle(p.x, p.y, '#f97316', 4, 0.3);
+                        }
+                        if (p.traveled >= p.range) {
+                            this.projectiles.splice(i, 1);
+                            continue;
+                        }
+                    } else if (p.type === 'fireBlast' || p.type === 'airSlash') {
+                        p.life -= dt;
+                        if (p.life <= 0) {
+                            if (p.type === 'fireBlast') this.explodeFireBlast(p);
+                            this.projectiles.splice(i, 1);
+                            continue;
+                        }
+                    }
+
+                    // Collision with enemies
+                    for (let j = this.enemies.length - 1; j >= 0; j--) {
+                        const enemy = this.enemies[j];
+                        const dist = Math.hypot(enemy.x - p.x, enemy.y - p.y);
+
+                        if (dist < p.radius + enemy.radius) {
+                            this.damageEnemy(enemy, p.damage, true);
+
+                            if (p.type === 'flamethrower') {
+                                this.projectiles.splice(i, 1);
+                                break;
+                            } else if (p.type === 'fireBlast') {
+                                this.explodeFireBlast(p);
+                                this.projectiles.splice(i, 1);
+                                break;
+                            } else if (p.type === 'airSlash') {
+                                p.pierce--;
+                                if (p.pierce <= 0) {
+                                    this.projectiles.splice(i, 1);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            explodeFireBlast(p) {
+                sound.playHit();
+                for (let i = 0; i < 20; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const spd = 50 + Math.random() * 150;
+                    this.particles.push({
+                        x: p.x,
+                        y: p.y,
+                        vx: Math.cos(angle) * spd,
+                        vy: Math.sin(angle) * spd,
+                        color: Math.random() > 0.5 ? '#ef4444' : '#f97316',
+                        radius: 3 + Math.random() * 5,
+                        life: 0.4
+                    });
+                }
+
+                // Area damage
+                for (let enemy of this.enemies) {
+                    const dist = Math.hypot(enemy.x - p.x, enemy.y - p.y);
+                    if (dist < p.area) {
+                        this.damageEnemy(enemy, p.damage, true);
+                    }
+                }
+            }
+
+            // ==========================================
+            // ENEMIES & SPAWNING
+            // ==========================================
+            spawnManager(dt) {
+                this.spawnTimer += dt;
+                
+                // Increase difficulty curve over time
+                const minSpawnInterval = 0.2;
+                this.spawnInterval = Math.max(minSpawnInterval, 1.2 - (this.survivalTime / 120));
+
+                if (this.spawnTimer >= this.spawnInterval) {
+                    this.spawnTimer = 0;
+                    this.spawnEnemy();
+                }
+            }
+
+            spawnEnemy() {
+                // Determine pool based on time
+                const pool = ['rattata', 'zubat'];
+                if (this.survivalTime > 30) pool.push('geodude');
+                if (this.survivalTime > 75) pool.push('gengar');
+
+                const typeKey = pool[Math.floor(Math.random() * pool.length)];
+                const template = ENEMY_TYPES[typeKey];
+
+                // Spawn in a ring around player outside view
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.max(this.width, this.height) / 1.5 + 50;
+
+                const spawnX = this.player.x + Math.cos(angle) * distance;
+                const spawnY = this.player.y + Math.sin(angle) * distance;
+
+                // Scaling enemy stats with time
+                const scale = 1 + (this.survivalTime / 90);
+
+                this.enemies.push({
+                    id: Math.random(),
+                    typeKey: typeKey,
+                    name: template.name,
+                    x: spawnX,
+                    y: spawnY,
+                    color: template.color,
+                    radius: template.radius,
+                    speed: template.speed * (0.9 + Math.random() * 0.2),
+                    hp: template.hp * scale,
+                    maxHp: template.hp * scale,
+                    damage: template.damage * scale,
+                    exp: template.exp
+                });
+            }
+
+            updateEnemies(dt) {
+                for (let i = this.enemies.length - 1; i >= 0; i--) {
+                    const enemy = this.enemies[i];
+
+                    // Movement towards Charizard
+                    const angle = Math.atan2(this.player.y - enemy.y, this.player.x - enemy.x);
+                    enemy.x += Math.cos(angle) * enemy.speed * dt;
+                    enemy.y += Math.sin(angle) * enemy.speed * dt;
+
+                    // Player Collision
+                    const dist = Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y);
+                    if (dist < this.player.radius + enemy.radius) {
+                        const netDamage = enemy.damage * (1 - this.player.armor);
+                        this.player.hp -= netDamage * dt;
+                        sound.playHit();
+
+                        if (this.player.hp <= 0) {
+                            this.gameOver();
+                        }
+                    }
+                }
+            }
+
+            damageEnemy(enemy, damage, showText = true) {
+                enemy.hp -= damage;
+
+                if (showText) {
+                    this.damageNumbers.push({
+                        text: Math.round(damage),
+                        x: enemy.x + (Math.random() * 20 - 10),
+                        y: enemy.y - 10,
+                        life: 0.6,
+                        color: '#fef08a'
+                    });
+                }
+
+                if (enemy.hp <= 0) {
+                    this.killEnemy(enemy);
+                }
+            }
+
+            killEnemy(enemy) {
+                this.kills++;
+                // Spawn EXP Gem
+                this.gems.push({
+                    x: enemy.x,
+                    y: enemy.y,
+                    exp: enemy.exp,
+                    radius: 6
+                });
+
+                // Splatter Particles
+                for (let i = 0; i < 6; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 20 + Math.random() * 60;
+                    this.particles.push({
+                        x: enemy.x,
+                        y: enemy.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        color: enemy.color,
+                        radius: 3,
+                        life: 0.3
+                    });
+                }
+
+                const index = this.enemies.indexOf(enemy);
+                if (index !== -1) {
+                    this.enemies.splice(index, 1);
+                }
+            }
+
+            // ==========================================
+            // GEMS & LEVEL UP
+            // ==========================================
+            updateGems(dt) {
+                for (let i = this.gems.length - 1; i >= 0; i--) {
+                    const gem = this.gems[i];
+                    const dist = Math.hypot(this.player.x - gem.x, this.player.y - gem.y);
+
+                    if (dist < this.player.magnetRange) {
+                        const angle = Math.atan2(this.player.y - gem.y, this.player.x - gem.x);
+                        gem.x += Math.cos(angle) * 350 * dt;
+                        gem.y += Math.sin(angle) * 350 * dt;
+                    }
+
+                    if (dist < this.player.radius + gem.radius) {
+                        sound.playExp();
+                        this.addExp(gem.exp);
+                        this.gems.splice(i, 1);
+                    }
+                }
+            }
+
+            addExp(amount) {
+                this.player.exp += amount;
+                if (this.player.exp >= this.player.nextLevelExp) {
+                    this.player.exp -= this.player.nextLevelExp;
+                    this.player.level++;
+                    this.player.nextLevelExp = Math.round(this.player.nextLevelExp * 1.35);
+                    this.triggerLevelUp();
+                }
+            }
+
+            triggerLevelUp() {
+                sound.playLevelUp();
+                this.isPaused = true;
+
+                const cardsContainer = document.getElementById('upgrade-cards');
+                cardsContainer.innerHTML = '';
+
+                const choices = this.generateUpgradeOptions();
+
+                choices.forEach(choice => {
+                    const card = document.createElement('div');
+                    card.className = "glass-panel p-5 rounded-2xl flex flex-col justify-between cursor-pointer card-hover border border-gray-700/60 bg-gray-900/90";
+                    
+                    const isNew = choice.type === 'move' && choice.data.level === 0;
+                    const typeTag = choice.type === 'move' ? (isNew ? 'NUEVO ATAQUE' : 'MEJORA ATAQUE') : 'MEJORA STAT';
+                    const tagBg = choice.type === 'move' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="text-[10px] font-pixel px-2 py-1 rounded-md border ${tagBg}">${typeTag}</span>
+                                ${choice.type === 'move' ? `<span class="text-xs font-pixel text-yellow-400">Niv ${choice.data.level + 1}</span>` : ''}
+                            </div>
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-12 h-12 rounded-xl bg-gray-800/80 flex items-center justify-center text-2xl border border-gray-700">
+                                    <i class="fa-solid ${choice.icon} ${choice.color || 'text-orange-400'}"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-white text-base">${choice.title}</h3>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400 leading-relaxed">${choice.desc}</p>
+                        </div>
+                        <button class="mt-4 w-full py-2 bg-gray-800 hover:bg-orange-500 hover:text-gray-950 font-pixel text-xs font-bold rounded-xl transition-all border border-gray-700">SELECCIONAR</button>
+                    `;
+
+                    card.addEventListener('click', () => {
+                        this.applyUpgrade(choice);
+                        document.getElementById('upgrade-modal').classList.add('hidden');
+                        this.isPaused = false;
+                    });
+
+                    cardsContainer.appendChild(card);
+                });
+
+                document.getElementById('upgrade-modal').classList.remove('hidden');
+            }
+
+            generateUpgradeOptions() {
+                const options = [];
+
+                // Available move upgrades
+                for (let key in this.moves) {
+                    const m = this.moves[key];
+                    if (m.level < m.maxLevel) {
+                        options.push({
+                            type: 'move',
+                            key: key,
+                            title: m.name,
+                            icon: m.icon,
+                            color: 'text-orange-400',
+                            desc: m.level === 0 ? m.desc : `Aumenta el poder y reduce el enfriamiento de ${m.name}.`,
+                            data: m
+                        });
+                    }
+                }
+
+                // Available Stat Upgrades
+                STAT_UPGRADES.forEach(stat => {
+                    options.push({
+                        type: 'stat',
+                        key: stat.id,
+                        title: stat.name,
+                        icon: stat.icon,
+                        color: stat.color,
+                        desc: stat.desc
+                    });
+                });
+
+                // Pick 3 random distinct options
+                options.sort(() => 0.5 - Math.random());
+                return options.slice(0, 3);
+            }
+
+            applyUpgrade(choice) {
+                if (choice.type === 'move') {
+                    const m = this.moves[choice.key];
+                    m.level++;
+                    if (m.level > 1) {
+                        m.damage *= 1.25;
+                        m.cooldown *= 0.85;
+                    }
+                } else if (choice.type === 'stat') {
+                    switch (choice.key) {
+                        case 'fuerza':
+                            this.player.damageMult += 0.20;
+                            break;
+                        case 'armadura':
+                            this.player.armor = Math.min(0.60, this.player.armor + 0.15);
+                            break;
+                        case 'velocidad':
+                            this.player.speed += 30;
+                            break;
+                        case 'cadencia':
+                            this.player.cooldownMult *= 0.85;
+                            break;
+                        case 'salud':
+                            this.player.maxHp += 25;
+                            this.player.hp = Math.min(this.player.maxHp, this.player.hp + 25);
+                            break;
+                        case 'iman':
+                            this.player.magnetRange += 40;
+                            break;
+                    }
+                }
+            }
+
+            updateParticles(dt) {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.life -= dt;
+                    if (p.life <= 0) this.particles.splice(i, 1);
+                }
+
+                for (let i = this.damageNumbers.length - 1; i >= 0; i--) {
+                    const dn = this.damageNumbers[i];
+                    dn.y -= 20 * dt;
+                    dn.life -= dt;
+                    if (dn.life <= 0) this.damageNumbers.splice(i, 1);
+                }
+            }
+
+            addParticle(x, y, color, radius, life) {
+                this.particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 40,
+                    vy: (Math.random() - 0.5) * 40,
+                    color: color,
+                    radius: radius,
+                    life: life
+                });
+            }
+
+            // ==========================================
+            // HUD & GAME OVER
+            // ==========================================
+            updateHud() {
+                // EXP Bar
+                const expPct = Math.min(100, (this.player.exp / this.player.nextLevelExp) * 100);
+                document.getElementById('exp-bar').style.width = `${expPct}%`;
+                document.getElementById('level-text').innerText = `NIVEL ${this.player.level}`;
+
+                // HP Bar
+                const hpPct = Math.max(0, (this.player.hp / this.player.maxHp) * 100);
+                document.getElementById('hp-bar').style.width = `${hpPct}%`;
+                document.getElementById('hp-text').innerText = `${Math.ceil(this.player.hp)}/${this.player.maxHp}`;
+
+                // Time String
+                const mins = Math.floor(this.survivalTime / 60).toString().padStart(2, '0');
+                const secs = Math.floor(this.survivalTime % 60).toString().padStart(2, '0');
+                document.getElementById('time-text').innerText = `${mins}:${secs}`;
+
+                // Kills
+                document.getElementById('kills-text').innerText = this.kills;
+
+                // Active Move Icons
+                const activeList = document.getElementById('active-skills-list');
+                activeList.innerHTML = '';
+                for (let key in this.moves) {
+                    const m = this.moves[key];
+                    if (m.level > 0) {
+                        const iconBox = document.createElement('div');
+                        iconBox.className = "w-8 h-8 rounded-lg bg-gray-800 border border-orange-500/50 flex items-center justify-center text-orange-400 text-xs font-bold relative";
+                        iconBox.innerHTML = `<i class="fa-solid ${m.icon}"></i><span class="absolute -bottom-1 -right-1 text-[9px] bg-black/80 px-1 rounded text-yellow-300 font-pixel">${m.level}</span>`;
+                        activeList.appendChild(iconBox);
+                    }
+                }
+            }
+
+            gameOver() {
+                this.isRunning = false;
+                
+                const mins = Math.floor(this.survivalTime / 60).toString().padStart(2, '0');
+                const secs = Math.floor(this.survivalTime % 60).toString().padStart(2, '0');
+
+                document.getElementById('final-time').innerText = `${mins}:${secs}`;
+                document.getElementById('final-kills').innerText = this.kills;
+                document.getElementById('final-level').innerText = `Nivel ${this.player.level}`;
+
+                document.getElementById('game-over-modal').classList.remove('hidden');
+            }
+
+            // ==========================================
+            // RENDERING CANVAS GRAPHICS
+            // ==========================================
+            render() {
+                this.ctx.clearRect(0, 0, this.width, this.height);
+
+                this.ctx.save();
+                // Translate canvas for camera focus
+                this.ctx.translate(-this.camera.x, -this.camera.y);
+
+                this.renderBackground();
+                this.renderGems();
+                this.renderEnemies();
+                this.renderProjectiles();
+                this.renderFireSpinEffect();
+                this.renderPlayer();
+                this.renderParticles();
+                this.renderDamageNumbers();
+
+                this.ctx.restore();
+            }
+
+            renderBackground() {
+                const tileSize = 64;
+                const startX = Math.floor(this.camera.x / tileSize) * tileSize;
+                const startY = Math.floor(this.camera.y / tileSize) * tileSize;
+
+                const endX = startX + this.width + tileSize * 2;
+                const endY = startY + this.height + tileSize * 2;
+
+                for (let x = startX; x < endX; x += tileSize) {
+                    for (let y = startY; y < endY; y += tileSize) {
+                        // Alternate grass hues
+                        const hash = Math.sin(x * 0.01 + y * 0.02);
+                        this.ctx.fillStyle = hash > 0 ? '#15803d' : '#166534';
+                        this.ctx.fillRect(x, y, tileSize, tileSize);
+
+                        // Subtle grass blade details
+                        this.ctx.fillStyle = '#22c55e';
+                        this.ctx.fillRect(x + 12, y + 16, 2, 6);
+                        this.ctx.fillRect(x + 40, y + 36, 3, 7);
+                        this.ctx.fillRect(x + 24, y + 48, 2, 5);
+
+                        // Grid border lines
+                        this.ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+                        this.ctx.strokeRect(x, y, tileSize, tileSize);
+                    }
+                }
+            }
+
+            renderPlayer() {
+                const p = this.player;
+                this.ctx.save();
+                this.ctx.translate(p.x, p.y);
+
+                if (p.facingLeft) {
+                    this.ctx.scale(-1, 1);
+                }
+
+                // Shadow
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                this.ctx.beginPath();
+                this.ctx.ellipse(0, 18, 18, 8, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Wings
+                const wingFlap = Math.sin(p.wingAngle) * 0.2;
+                this.ctx.fillStyle = '#065f46'; // Teal wing interior
+                this.ctx.beginPath();
+                this.ctx.moveTo(-6, -6);
+                this.ctx.lineTo(-28, -20 + wingFlap * 10);
+                this.ctx.lineTo(-18, 5);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                this.ctx.fillStyle = '#ea580c'; // Wing outer frame
+                this.ctx.beginPath();
+                this.ctx.moveTo(-6, -6);
+                this.ctx.lineTo(-30, -22 + wingFlap * 10);
+                this.ctx.lineTo(-26, -14);
+                this.ctx.closePath();
+                this.ctx.fill();
+
+                // Body (Charizard Orange)
+                this.ctx.fillStyle = '#f97316';
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, 16, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Cream Belly
+                this.ctx.fillStyle = '#fef08a';
+                this.ctx.beginPath();
+                this.ctx.arc(4, 3, 10, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Head
+                this.ctx.fillStyle = '#f97316';
+                this.ctx.beginPath();
+                this.ctx.arc(6, -12, 11, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Horns
+                this.ctx.beginPath();
+                this.ctx.moveTo(2, -20);
+                this.ctx.lineTo(-6, -26);
+                this.ctx.lineTo(0, -18);
+                this.ctx.fill();
+
+                // Eye
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.beginPath();
+                this.ctx.arc(9, -14, 3, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.fillStyle = '#0284c7';
+                this.ctx.beginPath();
+                this.ctx.arc(10, -14, 1.5, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Tail Flame
+                this.ctx.fillStyle = '#f97316';
+                this.ctx.beginPath();
+                this.ctx.moveTo(-12, 8);
+                this.ctx.quadraticCurveTo(-22, 15, -24, 10);
+                this.ctx.lineWidth = 4;
+                this.ctx.strokeStyle = '#f97316';
+                this.ctx.stroke();
+
+                // Animated Fire on Tail Tip
+                const fireSize = 6 + Math.sin(p.wingAngle * 2) * 2;
+                this.ctx.fillStyle = '#ef4444';
+                this.ctx.beginPath();
+                this.ctx.arc(-25, 8, fireSize, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.fillStyle = '#eab308';
+                this.ctx.beginPath();
+                this.ctx.arc(-25, 8, fireSize * 0.5, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                this.ctx.restore();
+            }
+
+            renderEnemies() {
+                for (let enemy of this.enemies) {
+                    this.ctx.save();
+                    this.ctx.translate(enemy.x, enemy.y);
+
+                    // Shadow
+                    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(0, enemy.radius * 0.8, enemy.radius, enemy.radius * 0.4, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Main Sprite Circle
+                    this.ctx.fillStyle = enemy.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(0, 0, enemy.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+
+                    // Distinct enemy features
+                    if (enemy.typeKey === 'zubat') {
+                        // Wings
+                        this.ctx.fillStyle = '#1d4ed8';
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(-enemy.radius, 0);
+                        this.ctx.lineTo(-enemy.radius - 8, -10);
+                        this.ctx.lineTo(-enemy.radius, 5);
+                        this.ctx.fill();
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(enemy.radius, 0);
+                        this.ctx.lineTo(enemy.radius + 8, -10);
+                        this.ctx.lineTo(enemy.radius, 5);
+                        this.ctx.fill();
+                    } else if (enemy.typeKey === 'geodude') {
+                        // Rocky pattern
+                        this.ctx.fillStyle = '#542a0c';
+                        this.ctx.fillRect(-6, -6, 5, 5);
+                        this.ctx.fillRect(2, 2, 6, 6);
+                    } else if (enemy.typeKey === 'gengar') {
+                        // Red Eyes
+                        this.ctx.fillStyle = '#ef4444';
+                        this.ctx.beginPath();
+                        this.ctx.arc(-6, -4, 3, 0, Math.PI * 2);
+                        this.ctx.arc(6, -4, 3, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+
+                    // Health bar if damaged
+                    if (enemy.hp < enemy.maxHp) {
+                        const barW = enemy.radius * 2;
+                        const barH = 4;
+                        const hpPct = Math.max(0, enemy.hp / enemy.maxHp);
+                        this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        this.ctx.fillRect(-barW / 2, -enemy.radius - 10, barW, barH);
+                        this.ctx.fillStyle = '#22c55e';
+                        this.ctx.fillRect(-barW / 2, -enemy.radius - 10, barW * hpPct, barH);
+                    }
+
+                    this.ctx.restore();
+                }
+            }
+
+            renderProjectiles() {
+                for (let p of this.projectiles) {
+                    this.ctx.save();
+                    if (p.type === 'flamethrower') {
+                        this.ctx.fillStyle = '#f97316';
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = '#fef08a';
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, p.radius * 0.5, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    } else if (p.type === 'fireBlast') {
+                        this.ctx.fillStyle = '#ef4444';
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.strokeStyle = '#f97316';
+                        this.ctx.lineWidth = 3;
+                        this.ctx.stroke();
+                    } else if (p.type === 'airSlash') {
+                        this.ctx.translate(p.x, p.y);
+                        const angle = Math.atan2(p.vy, p.vx);
+                        this.ctx.rotate(angle);
+                        this.ctx.fillStyle = '#38bdf8';
+                        this.ctx.beginPath();
+                        this.ctx.ellipse(0, 0, 16, 5, 0, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    } else if (p.type === 'dragonPulse') {
+                        this.ctx.strokeStyle = '#a855f7';
+                        this.ctx.lineWidth = 6;
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        this.ctx.stroke();
+                    }
+                    this.ctx.restore();
+                }
+            }
+
+            renderFireSpinEffect() {
+                const move = this.moves.fireSpin;
+                if (move && move.level > 0) {
+                    this.ctx.save();
+                    this.ctx.translate(this.player.x, this.player.y);
+                    const spinAngle = performance.now() * 0.003;
+
+                    for (let i = 0; i < 4; i++) {
+                        const angle = spinAngle + (i * Math.PI / 2);
+                        const fx = Math.cos(angle) * move.radius;
+                        const fy = Math.sin(angle) * move.radius;
+
+                        this.ctx.fillStyle = '#eab308';
+                        this.ctx.beginPath();
+                        this.ctx.arc(fx, fy, 10, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = '#f97316';
+                        this.ctx.beginPath();
+                        this.ctx.arc(fx, fy, 6, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                    this.ctx.restore();
+                }
+            }
+
+            renderGems() {
+                for (let gem of this.gems) {
+                    this.ctx.fillStyle = '#38bdf8';
+                    this.ctx.beginPath();
+                    this.ctx.arc(gem.x, gem.y, gem.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#ffffff';
+                    this.ctx.lineWidth = 1.5;
+                    this.ctx.stroke();
+                }
+            }
+
+            renderParticles() {
+                for (let p of this.particles) {
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+
+            renderDamageNumbers() {
+                this.ctx.font = 'bold 12px "Press Start 2P", monospace';
+                for (let dn of this.damageNumbers) {
+                    this.ctx.fillStyle = dn.color;
+                    this.ctx.fillText(dn.text, dn.x, dn.y);
+                }
+            }
+        }
+
+        // Initialize Game Engine on Load
+        window.onload = () => {
+            window.gameInstance = new Game();
+        };
+    </script>
+</body>
+</html>
